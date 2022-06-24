@@ -9,6 +9,7 @@ import android.util.Log
 import android.provider.MediaStore
 import android.content.ContentUris
 import android.database.Cursor
+import android.net.Uri
 import kotlinx.android.synthetic.main.activity_main.*
 import android.os.Handler
 import java.util.*
@@ -19,12 +20,15 @@ class MainActivity : AppCompatActivity() {
     var fieldIndex = 0
     var id: Long = 0
     var position = 0
+    private var cursor: Cursor? = null
+    var imageUri: Uri? = null
     // タイマー用の時間のための変数
     var mTimerSec = 0.0
     // タイマー用の時間のための変数
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        mTimer = Timer()
         start_button.setOnClickListener {
             // Android 6.0以降の場合
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -69,6 +73,7 @@ class MainActivity : AppCompatActivity() {
             mTimer!!.cancel()
             mTimer = null
         }
+        /*
         val resolver = contentResolver
         val cursor = resolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI, // データの種類
@@ -77,15 +82,37 @@ class MainActivity : AppCompatActivity() {
             null, // フィルタ用パラメータ
             null // ソート (nullソートなし）
         )
-        id ++
-        cursor!!.moveToPosition(position)
-        cursor.moveToNext()
-        position = cursor!!.getPosition()
         var imageUri = ContentUris.withAppendedId(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             id
         )
         imageView.setImageURI(imageUri)
+        cursor!!.moveToPosition(position)
+        cursor.moveToNext()
+        position = cursor!!.getPosition()
+        id ++*/
+        cursor!!.moveToPosition(position)
+        if (cursor!!.isLast) {
+            cursor!!.moveToFirst()
+            position = cursor!!.getPosition()
+            fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
+            id = cursor!!.getLong(fieldIndex)
+            imageUri = ContentUris.withAppendedId(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                id
+            )
+            imageView.setImageURI(imageUri)
+        }else{
+            cursor!!.moveToNext()
+            position = cursor!!.getPosition()
+            fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
+            id = cursor!!.getLong(fieldIndex)
+            imageUri = ContentUris.withAppendedId(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                id
+            )
+            imageView.setImageURI(imageUri)
+        }
     }
 
     private fun getPreviousContentsInfo() {
@@ -93,58 +120,58 @@ class MainActivity : AppCompatActivity() {
             mTimer!!.cancel()
             mTimer = null
         }
-        val resolver = contentResolver
-        val cursor = resolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, // データの種類
-            null, // 項目（null = 全項目）
-            null, // フィルタ条件（null = フィルタなし）
-            null, // フィルタ用パラメータ
-            null // ソート (nullソートなし）
-        )
-        Log.d("fieldIndex", "タイマーを停止しました")
-
-        Log.d("fieldIndex", "id: " + id)
-        id --
-        Log.d("fieldIndex", "id: " + id)
         cursor!!.moveToPosition(position)
-        cursor.moveToPrevious()
-        position = cursor!!.getPosition()
-        var imageUri = ContentUris.withAppendedId(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            id
-        )
-        imageView.setImageURI(imageUri)
+        if (cursor!!.isFirst) {
+            cursor!!.moveToLast()
+            position = cursor!!.getPosition()
+            fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
+            id = cursor!!.getLong(fieldIndex)
+            imageUri = ContentUris.withAppendedId(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                id
+            )
+            imageView.setImageURI(imageUri)
+        }else{
+            cursor!!.moveToPrevious()
+            position = cursor!!.getPosition()
+            fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
+            id = cursor!!.getLong(fieldIndex)
+            imageUri = ContentUris.withAppendedId(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                id
+            )
+            imageView.setImageURI(imageUri)
+        }
     }
 
     private fun getContentsInfo() {
-        if (mTimer != null){
-            mTimer!!.cancel()
-            mTimer = null
-        }
-        mTimer = Timer()
-        // タイマーの始動
-        val resolver = contentResolver
-        val cursor = resolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, // データの種類
-            null, // 項目（null = 全項目）
-            null, // フィルタ条件（null = フィルタなし）
-            null, // フィルタ用パラメータ
-            null // ソート (nullソートなし）
-        )
-        Log.d("fieldIndex", "再生を始めました")
-        if(fieldIndex == 0)
-            cursor!!.moveToFirst()
-        else
-            cursor!!.moveToPosition(position)
-        mTimer!!.schedule(object : TimerTask() {
-            override fun run() {
+        if (start_button.text.equals("再生")) {
+            start_button.setText("停止")
+            next_button.isClickable = false
+            back_button.isClickable = false
+            // タイマーの始動
+            val resolver = contentResolver
+            cursor = resolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, // データの種類
+                null, // 項目（null = 全項目）
+                null, // フィルタ条件（null = フィルタなし）
+                null, // フィルタ用パラメータ
+                null // ソート (nullソートなし）
+            )
+            Log.d("fieldIndex", "再生を始めました")
+            if (fieldIndex == 0)
+                cursor!!.moveToFirst()
+            else
+                cursor!!.moveToPosition(position)
+            mTimer = Timer()
+            mTimer!!.schedule(object : TimerTask() {
+                override fun run() {
                     mTimerSec += 1
                     mHandler.post {
                         // indexからIDを取得し、そのIDから画像のURIを取得する
                         fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
-                        Log.d("fieldIndex", "count: " + cursor.getPosition())
-                        id = cursor.getLong(fieldIndex)
-                        var imageUri = ContentUris.withAppendedId(
+                        id = cursor!!.getLong(fieldIndex)
+                        imageUri = ContentUris.withAppendedId(
                             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                             id
                         )
@@ -159,6 +186,19 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }, 1000, 1000) // 最初に始動させるまで100ミリ秒、ループの間隔を100ミリ秒
+        }else{
+            mTimer!!.cancel()
+            mTimer = null
+            start_button.setText("再生")
+            next_button.isClickable = true
+            back_button.isClickable = true
+            if (!cursor!!.isFirst())
+                cursor!!.moveToPrevious()
+            else cursor!!.moveToLast(
+
+            )
+            position = cursor!!.getPosition()
+        }
     }
         //cursor.close()
 }
